@@ -1,8 +1,10 @@
 # codex-claude-subagents
 
-**Codex leads. Claude works. Logs stay out of git.**
+**Run Claude subagents from Codex. Works inside Claude Code too.**
 
-A [Codex](https://github.com/openai/codex) skill that lets Codex orchestrate Claude CLI as resumable, scoped subagents — each worker runs with an explicit write scope, streams structured logs to `.agent-runs/claude/`, and can be resumed by session ID if interrupted.
+A [Codex](https://github.com/openai/codex) skill for orchestrating Claude CLI as resumable, scoped subagents — each Claude subagent runs with an explicit write scope, streams structured logs to `.agent-runs/claude/`, and can be resumed by session ID if interrupted.
+
+Now that [Codex is available inside Claude Code](https://docs.anthropic.com/en/docs/claude-code), this skill extends both tools: use Claude subagents from the Codex CLI, or delegate scoped tasks to Claude workers from within Claude Code + Codex.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/)
@@ -12,9 +14,9 @@ A [Codex](https://github.com/openai/codex) skill that lets Codex orchestrate Cla
 
 ## Why
 
-Codex and Claude are both capable agents, but they have different strengths. Codex excels at orchestration, planning, and driving multi-step workflows. Claude excels at deep reasoning, careful edits, and long-horizon tasks.
+Codex and Claude are both capable agents with different strengths. Codex excels at orchestration, planning, and driving multi-step workflows. Claude excels at deep reasoning, careful edits, and long-horizon tasks. Running Claude subagents from inside Codex lets you get the best of both — without a framework, extra packages, or glue code.
 
-This skill wires them together cleanly:
+This skill wires them together:
 
 ![Architecture diagram](assets/architecture.svg)
 
