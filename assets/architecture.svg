@@ -1,0 +1,188 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 380" width="860" height="380">
+  <defs>
+    <marker id="ah-amber" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#f59e0b"/>
+    </marker>
+    <marker id="ah-blue" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#3b82f6"/>
+    </marker>
+    <marker id="ah-purple" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#8b5cf6"/>
+    </marker>
+    <marker id="ah-green" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#10b981"/>
+    </marker>
+    <linearGradient id="bg-grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0d1117"/>
+      <stop offset="100%" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="codex-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0f1f38"/>
+      <stop offset="100%" stop-color="#0a1628"/>
+    </linearGradient>
+    <linearGradient id="claude-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1c0f38"/>
+      <stop offset="100%" stop-color="#130a28"/>
+    </linearGradient>
+    <linearGradient id="logs-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0a2018"/>
+      <stop offset="100%" stop-color="#061510"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="860" height="380" fill="url(#bg-grad)" rx="16"/>
+
+  <!-- Subtle top label -->
+  <text x="430" y="28" text-anchor="middle"
+        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif"
+        font-size="11" font-weight="500" fill="#4b5563" letter-spacing="2">
+    HOW IT WORKS
+  </text>
+
+  <!-- ── You pill ── -->
+  <rect x="110" y="46" width="80" height="30" rx="15"
+        fill="#1c2433" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="150" y="66"
+        text-anchor="middle"
+        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif"
+        font-size="12" font-weight="600" fill="#f59e0b">
+    👤  You
+  </text>
+
+  <!-- Arrow: You → Codex -->
+  <line x1="150" y1="76" x2="150" y2="115"
+        stroke="#f59e0b" stroke-width="1.5" marker-end="url(#ah-amber)"/>
+  <text x="158" y="100"
+        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif"
+        font-size="9" fill="#78716c">
+    delegates task
+  </text>
+
+  <!-- ── Codex box ── -->
+  <rect x="60" y="118" width="180" height="148" rx="10"
+        fill="url(#codex-grad)" stroke="#3b82f6" stroke-width="1.5"/>
+  <!-- header band -->
+  <rect x="60" y="118" width="180" height="38" rx="10" fill="#1e3a5f" opacity="0.6"/>
+  <rect x="60" y="138" width="180" height="18" fill="#1e3a5f" opacity="0.6"/>
+  <text x="150" y="143"
+        text-anchor="middle"
+        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif"
+        font-size="13" font-weight="700" fill="#60a5fa">
+    🤖  Codex
+  </text>
+  <text x="150" y="161"
+        text-anchor="middle"
+        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif"
+        font-size="9" font-weight="500" fill="#3b82f6" letter-spacing="1">
+    LEAD ORCHESTRATOR
+  </text>
+  <line x1="75" y1="168" x2="225" y2="168" stroke="#1e40af" stroke-width="0.75"/>
+  <text x="75" y="185"
+        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif"
+        font-size="10" fill="#94a3b8">· Plans the work</text>
+  <text x="75" y="202"
+        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif"
+        font-size="10" fill="#94a3b8">· Scopes Claude's access</text>
+  <text x="75" y="219"
+        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif"
+        font-size="10" fill="#94a3b8">· Reads summary on done</text>
+  <text x="75" y="236"
+        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif"
+        font-size="10" fill="#94a3b8">· Reports back to you</text>
+
+  <!-- ── Arrow: Codex → Claude ── -->
+  <line x1="242" y1="192" x2="336" y2="192"
+        stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="0"
+        marker-end="url(#ah-blue)"/>
+  <text x="289" y="185"
+        text-anchor="middle"
+        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif"
+        font-size="9" fill="#3b82f6">
+    spawns · scoped
+  </text>
+
+  <!-- ── Claude box ── -->
+  <rect x="340" y="118" width="180" height="148" rx="10"
+        fill="url(#claude-grad)" stroke="#8b5cf6" stroke-width="1.5"/>
+  <rect x="340" y="118" width="180" height="38" rx="10" fill="#3b1f6e" opacity="0.5"/>
+  <rect x="340" y="138" width="180" height="18" fill="#3b1f6e" opacity="0.5"/>
+  <text x="430" y="143"
+        text-anchor="middle"
+        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif"
+        font-size="13" font-weight="700" fill="#a78bfa">
+    ⚡  Claude CLI
+  </text>
+  <text x="430" y="161"
+        text-anchor="middle"
+        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif"
+        font-size="9" font-weight="500" fill="#8b5cf6" letter-spacing="1">
+    SCOPED WORKER
+  </text>
+  <line x1="355" y1="168" x2="505" y2="168" stroke="#4c1d95" stroke-width="0.75"/>
+  <text x="355" y="185"
+        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif"
+        font-size="10" fill="#94a3b8">· Stays in write scope</text>
+  <text x="355" y="202"
+        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif"
+        font-size="10" fill="#94a3b8">· Streams structured logs</text>
+  <text x="355" y="219"
+        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif"
+        font-size="10" fill="#94a3b8">· Writes summary on exit</text>
+  <text x="355" y="236"
+        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif"
+        font-size="10" fill="#94a3b8">· Resumable by session ID</text>
+
+  <!-- ── Arrow: Claude → Logs ── -->
+  <line x1="522" y1="192" x2="616" y2="192"
+        stroke="#8b5cf6" stroke-width="1.5"
+        marker-end="url(#ah-purple)"/>
+  <text x="569" y="185"
+        text-anchor="middle"
+        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif"
+        font-size="9" fill="#8b5cf6">
+    streams logs
+  </text>
+
+  <!-- ── Logs box ── -->
+  <rect x="620" y="118" width="180" height="148" rx="10"
+        fill="url(#logs-grad)" stroke="#10b981" stroke-width="1.5"/>
+  <rect x="620" y="118" width="180" height="38" rx="10" fill="#064e3b" opacity="0.6"/>
+  <rect x="620" y="138" width="180" height="18" fill="#064e3b" opacity="0.6"/>
+  <text x="710" y="143"
+        text-anchor="middle"
+        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif"
+        font-size="13" font-weight="700" fill="#34d399">
+    📁  .agent-runs/
+  </text>
+  <text x="710" y="161"
+        text-anchor="middle"
+        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif"
+        font-size="9" font-weight="500" fill="#10b981" letter-spacing="1">
+    GIT-IGNORED LOGS
+  </text>
+  <line x1="635" y1="168" x2="785" y2="168" stroke="#065f46" stroke-width="0.75"/>
+  <text x="635" y="185"
+        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif"
+        font-size="10" fill="#94a3b8">ledger.json</text>
+  <text x="635" y="202"
+        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif"
+        font-size="10" fill="#94a3b8">*.jsonl</text>
+  <text x="635" y="219"
+        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif"
+        font-size="10" fill="#94a3b8">*.summary.md</text>
+  <text x="635" y="236"
+        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif"
+        font-size="10" fill="#94a3b8">*.stderr.log</text>
+
+  <!-- ── Return arc: Logs → Codex ── -->
+  <path d="M 710 266 C 710 336 150 336 150 266"
+        stroke="#10b981" stroke-width="1.5" fill="none"
+        marker-end="url(#ah-green)"/>
+  <text x="430" y="354"
+        text-anchor="middle"
+        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif"
+        font-size="9" fill="#10b981">
+    reads summary
+  </text>
+</svg>

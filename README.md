@@ -16,19 +16,7 @@ Codex and Claude are both capable agents, but they have different strengths. Cod
 
 This skill wires them together cleanly:
 
-```mermaid
-flowchart TD
-    User(["👤 You"])
-    Codex["🤖 Codex\n(lead orchestrator)\n\n· Plans the work\n· Scopes what Claude may touch\n· Reads the summary on completion"]
-    Claude["⚡ Claude CLI\n(scoped worker)\n\n· Knows its task + write boundary\n· Streams output to .agent-runs/claude/\n· Writes a structured summary on exit\n· Resumable by session ID"]
-    Logs[("📁 .agent-runs/claude/\nledger.json · *.jsonl\n*.summary.md · *.stderr.log")]
-
-    User -->|"delegates task"| Codex
-    Codex -->|"spawns with write scope"| Claude
-    Claude -->|"streams logs"| Logs
-    Codex -->|"reads summary"| Logs
-    Codex -->|"reports back"| User
-```
+![Architecture diagram](assets/architecture.svg)
 
 No framework, no extra packages — stdlib only.
 
