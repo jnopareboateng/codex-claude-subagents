@@ -16,22 +16,18 @@ Codex and Claude are both capable agents, but they have different strengths. Cod
 
 This skill wires them together cleanly:
 
-```
-┌─────────────────────────────────────────────┐
-│  Codex  (lead orchestrator)                 │
-│  · Plans the work                           │
-│  · Scopes what Claude may touch             │
-│  · Reads the summary when Claude finishes   │
-└──────────────────┬──────────────────────────┘
-                   │ spawns
-                   ▼
-┌─────────────────────────────────────────────┐
-│  Claude  (scoped worker)                    │
-│  · Knows its task + write boundary          │
-│  · Streams output to .agent-runs/claude/    │
-│  · Writes a structured summary on exit      │
-│  · Can be resumed by session ID             │
-└─────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    User(["👤 You"])
+    Codex["🤖 Codex\n(lead orchestrator)\n\n· Plans the work\n· Scopes what Claude may touch\n· Reads the summary on completion"]
+    Claude["⚡ Claude CLI\n(scoped worker)\n\n· Knows its task + write boundary\n· Streams output to .agent-runs/claude/\n· Writes a structured summary on exit\n· Resumable by session ID"]
+    Logs[("📁 .agent-runs/claude/\nledger.json · *.jsonl\n*.summary.md · *.stderr.log")]
+
+    User -->|"delegates task"| Codex
+    Codex -->|"spawns with write scope"| Claude
+    Claude -->|"streams logs"| Logs
+    Codex -->|"reads summary"| Logs
+    Codex -->|"reports back"| User
 ```
 
 No framework, no extra packages — stdlib only.
@@ -49,7 +45,7 @@ Restart your Codex session after installing — Codex discovers skills at sessio
 **Requirements**
 
 - [Codex CLI](https://github.com/openai/codex) installed
-- [Claude CLI](https://docs.anthropic.com/en/docs/claude-code) installed and authenticated (`claude --version`)
+- [Claude CLI (Claude Code)](https://docs.anthropic.com/en/docs/claude-code) installed and authenticated (`claude --version`)
 - Python 3.9+
 
 ---
