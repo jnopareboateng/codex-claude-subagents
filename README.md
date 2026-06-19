@@ -1,10 +1,10 @@
 # codex-claude-subagents
 
-**Run Claude subagents from Codex. Works inside Claude Code too.**
+**Use Claude as subagents in Codex. Yep, that's it.**
 
-A [Codex](https://github.com/openai/codex) skill for orchestrating Claude CLI as resumable, scoped subagents — each Claude subagent runs with an explicit write scope, streams structured logs to `.agent-runs/claude/`, and can be resumed by session ID if interrupted.
+No more keeping Codex and Claude open side by side, manually shuttling context between them. This skill lets Codex spawn Claude CLI workers directly — scoped to a directory, resumable by session ID, logs kept out of git.
 
-Now that [Codex is available inside Claude Code](https://docs.anthropic.com/en/docs/claude-code), this skill extends both tools: use Claude subagents from the Codex CLI, or delegate scoped tasks to Claude workers from within Claude Code + Codex.
+OpenAI ships a Codex plugin for Claude Code. This is the other direction: Claude as a worker, orchestrated from inside Codex.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/)
