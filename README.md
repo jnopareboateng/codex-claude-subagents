@@ -18,7 +18,7 @@ Codex and Claude are both capable agents with different strengths. Codex excels 
 
 This skill wires them together:
 
-![Architecture diagram](assets/architecture.svg)
+![Architecture diagram](assets/architecture.png)
 
 No framework, no extra packages — stdlib only.
 
