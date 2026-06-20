@@ -145,6 +145,24 @@ Ready-made prompts live in `examples/prompts/`:
 
 ---
 
+## Concurrency and feedback model
+
+**Workers run sequentially per launcher call.** The launcher blocks on `subprocess.run` until the Claude process exits. There is no built-in parallel dispatch.
+
+To run multiple workers in parallel, background multiple launcher calls with distinct `--task` IDs:
+
+```bash
+python3 run_claude_subagent.py --task audit-auth  --prompt prompts/audit.md &
+python3 run_claude_subagent.py --task audit-tests --prompt prompts/audit.md &
+wait
+```
+
+Per-task log files (`<task>.jsonl`, `<task>.summary.md`) are keyed by task ID and do not collide. `ledger.json` is a shared file with no write lock — if two workers finish simultaneously, one ledger entry can be lost. For hard guarantees, add a file lock around the ledger write or use separate ledger files per task.
+
+**Feedback is post-hoc and one-way.** Codex is blind while a worker runs. The only output channel is the summary file the worker writes on exit, plus the JSON blob the launcher prints to stdout on completion. There is no mid-run signalling: the worker cannot return partial results, and Codex cannot interrupt or redirect a running worker. To get intermediate visibility, tail the `.jsonl` log from a separate process while the worker runs.
+
+---
+
 ## Limitations
 
 - Requires Claude CLI installed and authenticated locally.
