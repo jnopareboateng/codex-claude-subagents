@@ -1,0 +1,52 @@
+{
+    "generated_at":  "2026-06-20T09:01:59.1125173+00:00",
+    "repo":  "\\\\wsl.localhost\\Ubuntu-22.04\\home\\minojosh\\projects\\justjosh\\codex-claude-subagents\\demo-video\\scripts\\..\\..",
+    "final_video":  "\\\\wsl.localhost\\Ubuntu-22.04\\home\\minojosh\\projects\\justjosh\\codex-claude-subagents\\demo-video\\scripts\\..\\renders\\codex-claude-subagents-demo.mp4",
+    "audio_available":  true,
+    "source_evidence":  [
+                            "README.md",
+                            "skills/claude-subagents/scripts/run_claude_subagent.py --help",
+                            ".agent-runs/claude/ledger.json",
+                            ".agent-runs/claude/public-repo-bootstrap.summary.md",
+                            ".agent-runs/claude/smoke-test.summary.md"
+                        ],
+    "bootstrap_run":  {
+                          "cwd":  "/home/minojosh/projects/justjosh/codex-claude-subagents",
+                          "finished_at":  "2026-06-19T11:49:53.777013+00:00",
+                          "log_path":  "/home/minojosh/projects/justjosh/codex-claude-subagents/.agent-runs/claude/public-repo-bootstrap.jsonl",
+                          "name":  "public-repo-bootstrap",
+                          "prompt_path":  "/home/minojosh/projects/justjosh/codex-claude-subagents/.agent-runs/claude/public-repo-bootstrap.prompt.md",
+                          "returncode":  0,
+                          "session_id":  "b0dcc0eb-0d20-403c-a24a-bd4f321d6213",
+                          "started_at":  "2026-06-19T11:46:09.227066+00:00",
+                          "status":  "complete",
+                          "stderr_path":  "/home/minojosh/projects/justjosh/codex-claude-subagents/.agent-runs/claude/public-repo-bootstrap.stderr.log",
+                          "summary_exists":  true,
+                          "summary_path":  "/home/minojosh/projects/justjosh/codex-claude-subagents/.agent-runs/claude/public-repo-bootstrap.summary.md",
+                          "task_id":  "public-repo-bootstrap",
+                          "write_scope":  [
+                                              "README.md",
+                                              "LICENSE",
+                                              "skills",
+                                              "examples"
+                                          ]
+                      },
+    "smoke_run":  {
+                      "cwd":  "/home/minojosh/projects/justjosh/codex-claude-subagents",
+                      "finished_at":  "2026-06-19T15:58:01.573985+00:00",
+                      "log_path":  "/home/minojosh/projects/justjosh/codex-claude-subagents/.agent-runs/claude/smoke-test.jsonl",
+                      "name":  "smoke-test",
+                      "prompt_path":  "/home/minojosh/projects/justjosh/codex-claude-subagents/.agent-runs/claude/smoke-test.prompt.md",
+                      "returncode":  0,
+                      "session_id":  "3a89fee7-89e5-4349-81f4-d33eeb91cfe7",
+                      "started_at":  "2026-06-19T15:54:41.838649+00:00",
+                      "status":  "complete",
+                      "stderr_path":  "/home/minojosh/projects/justjosh/codex-claude-subagents/.agent-runs/claude/smoke-test.stderr.log",
+                      "summary_exists":  true,
+                      "summary_path":  "/home/minojosh/projects/justjosh/codex-claude-subagents/.agent-runs/claude/smoke-test.summary.md",
+                      "task_id":  "smoke-test",
+                      "write_scope":  [
+
+                                      ]
+                  }
+}
