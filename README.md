@@ -1,28 +1,28 @@
+<div align="center">
+
 # codex-claude-subagents
 
-**Use Claude as subagents in Codex. Yep, that's it.**
+### Use Claude as subagents in Codex.
 
-No more keeping Codex and Claude open side by side, manually shuttling context between them. This skill lets Codex spawn Claude CLI workers directly — scoped to a directory, resumable by session ID, logs kept out of git.
-
-OpenAI ships a Codex plugin for Claude Code. This is the other direction: Claude as a worker, orchestrated from inside Codex.
+Spawn scoped, resumable Claude CLI workers from inside a Codex session —
+no manual context-shuttling, no framework, stdlib only.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/)
 [![Requires Claude CLI](https://img.shields.io/badge/requires-claude%20CLI-blueviolet)](https://docs.anthropic.com/en/docs/claude-code)
 
+<img src="assets/architecture.png" alt="Architecture" width="720">
+
+</div>
+
 ---
 
 ## Why
 
-Codex and Claude are both capable agents with different strengths. Codex excels at orchestration, planning, and driving multi-step workflows. Claude excels at deep reasoning, careful edits, and long-horizon tasks. Running Claude subagents from inside Codex lets you get the best of both — without a framework, extra packages, or glue code.
-
-This skill wires them together:
-
-![Architecture diagram](assets/architecture.png)
-
-No framework, no extra packages — stdlib only.
-
----
+Codex orchestrates; Claude does the deep, careful work. This skill lets Codex
+launch Claude CLI as a scoped worker — directory-limited, session-resumable,
+every run recorded in a ledger Codex can audit or resume from later. OpenAI
+ships the Codex-in-Claude-Code direction; this is the reverse.
 
 ## Install
 
@@ -30,148 +30,68 @@ No framework, no extra packages — stdlib only.
 cp -R skills/claude-subagents ~/.codex/skills/
 ```
 
-Restart your Codex session after installing — Codex discovers skills at session start.
+Restart Codex afterward — skills are discovered at session start.
 
-**Requirements**
-
-- [Codex CLI](https://github.com/openai/codex) installed
-- [Claude CLI (Claude Code)](https://docs.anthropic.com/en/docs/claude-code) installed and authenticated (`claude --version`)
-- Python 3.9+
-
----
+**Requires:** [Codex CLI](https://github.com/openai/codex), [Claude CLI](https://docs.anthropic.com/en/docs/claude-code) (authenticated), Python 3.9+.
 
 ## Quickstart
 
-### Read-only audit
-
 ```bash
+# read-only audit
 python3 ~/.codex/skills/claude-subagents/scripts/run_claude_subagent.py \
-  --task audit-security \
-  --prompt examples/prompts/read-only-audit.md
+  --task audit-security --prompt examples/prompts/read-only-audit.md
+
+# scoped fix
+python3 ~/.codex/skills/claude-subagents/scripts/run_claude_subagent.py \
+  --task fix-auth --prompt examples/prompts/scoped-fix.md --write-scope src/auth
+
+# resume by session id (see .agent-runs/claude/ledger.json)
+python3 ~/.codex/skills/claude-subagents/scripts/run_claude_subagent.py \
+  --task fix-auth --prompt examples/prompts/scoped-fix.md \
+  --session-id <id> --write-scope src/auth
 ```
 
-### Scoped fix
-
-```bash
-python3 ~/.codex/skills/claude-subagents/scripts/run_claude_subagent.py \
-  --task fix-auth \
-  --prompt examples/prompts/scoped-fix.md \
-  --write-scope src/auth
-```
-
-### Resume an interrupted run
-
-```bash
-python3 ~/.codex/skills/claude-subagents/scripts/run_claude_subagent.py \
-  --task fix-auth \
-  --prompt examples/prompts/scoped-fix.md \
-  --session-id <session-id-from-ledger> \
-  --write-scope src/auth
-```
-
-Session IDs are stored in `.agent-runs/claude/ledger.json` after each run.
-
----
-
-## How to use from inside Codex
-
-Once the skill is installed, Codex picks it up automatically. Ask Codex things like:
-
-> "Run a security audit on this repo using the Claude subagent skill."
-
-> "Delegate the auth refactor to a Claude worker scoped to `src/auth`."
-
-Codex will invoke the launcher, wait for the summary, and report back.
-
----
+From inside Codex, just ask: *"Delegate the auth refactor to a Claude worker
+scoped to `src/auth`."*
 
 ## CLI reference
 
-```
-run_claude_subagent.py [options]
+| Flag | Required | Meaning |
+|---|---|---|
+| `--task` | yes | kebab-case task id — keys every log file |
+| `--prompt` | yes | markdown prompt file sent to the worker |
+| `--write-scope` | no | dir Claude may edit (repeatable); omit = read-only |
+| `--session-id` | no | resume a previous Claude session |
+| `--model` / `--effort` | no | default `sonnet` / `high` |
+| `--permission-mode` | no | default `acceptEdits` — `bypassPermissions` is rejected |
 
-Required:
-  --task   <id>       Stable kebab-case task identifier (used for log filenames)
-  --prompt <file>     Markdown prompt file to send to the worker
+## Logs and the worker contract
 
-Optional:
-  --write-scope <dir> Directory the worker may edit (repeatable; omit = read-only)
-  --session-id  <id>  Resume a previous Claude session
-  --model       <m>   Claude model (default: sonnet)
-  --effort      <e>   Reasoning effort: low|medium|high|xhigh|max (default: high)
-  --permission-mode   Claude permission mode (default: acceptEdits)
-  --cwd         <dir> Working directory for the Claude run (default: .)
-  --name        <n>   Display name for the session (default: task id)
-```
+Every run writes to `.agent-runs/claude/` (auto-gitignored): `ledger.json`
+(index — session id, status, paths), `<task>.jsonl` (stream), `<task>.summary.md`
+(the worker's own report), `<task>.stderr.log`, `<task>.prompt.md`.
 
----
+Every prompt is prepended with a contract: Codex leads, Claude stays inside
+`--write-scope`, and the worker must leave a summary covering Outcome, Files
+Changed, Verification, Risks, and Next.
 
-## Log layout
+## FAQ
 
-All logs are written to `.agent-runs/claude/` in the working directory. This path is automatically added to `.gitignore`.
+**Can workers run in parallel?**
+Yes — background multiple launcher calls with distinct `--task` ids. Ledger
+writes are file-locked, so concurrent completions can't race or drop entries.
 
-| File | Contents |
-|---|---|
-| `ledger.json` | Index of all runs — task, session ID, timestamps, exit code |
-| `<task>.jsonl` | Streaming structured output from Claude |
-| `<task>.stderr.log` | stderr from the Claude process |
-| `<task>.prompt.md` | Full injected prompt (worker contract + your prompt) |
-| `<task>.summary.md` | Final summary written by the Claude worker |
+**What happens if a session is already in use?**
+The run is marked `status: locked` in the ledger and exits `3`, instead of
+failing silently.
 
----
+**Can Codex see progress mid-run?**
+No — feedback is post-hoc. Tail the task's `.jsonl` from another shell for
+live visibility.
 
-## Worker contract
-
-Every prompt is prepended with a contract that tells Claude:
-
-- Codex is lead orchestrator; Claude is a scoped worker
-- Writes are restricted to `--write-scope` (or read-only if unset)
-- Structured output goes to logs; don't summarize to stdout
-- Write a compact summary to `.agent-runs/claude/<task>.summary.md`
-- Summary must include: Outcome, Files Inspected, Files Changed, Verification, Risks, Next
-
-This contract is injected automatically — your prompt file only needs the task description.
-
----
-
-## Example prompts
-
-Ready-made prompts live in `examples/prompts/`:
-
-| Prompt | Use case |
-|---|---|
-| `read-only-audit.md` | Security audit — no writes, structured findings table |
-| `scoped-fix.md` | Template for a scoped fix — fill in the issue description |
-
----
-
-## Concurrency and feedback model
-
-**Workers run sequentially per launcher call.** The launcher blocks on `subprocess.run` until the Claude process exits. There is no built-in parallel dispatch.
-
-To run multiple workers in parallel, background multiple launcher calls with distinct `--task` IDs:
-
-```bash
-python3 run_claude_subagent.py --task audit-auth  --prompt prompts/audit.md &
-python3 run_claude_subagent.py --task audit-tests --prompt prompts/audit.md &
-wait
-```
-
-Per-task log files (`<task>.jsonl`, `<task>.summary.md`) are keyed by task ID and do not collide. `ledger.json` is a shared file with no write lock — if two workers finish simultaneously, one ledger entry can be lost. For hard guarantees, add a file lock around the ledger write or use separate ledger files per task.
-
-**Feedback is post-hoc and one-way.** Codex is blind while a worker runs. The only output channel is the summary file the worker writes on exit, plus the JSON blob the launcher prints to stdout on completion. There is no mid-run signalling: the worker cannot return partial results, and Codex cannot interrupt or redirect a running worker. To get intermediate visibility, tail the `.jsonl` log from a separate process while the worker runs.
-
----
-
-## Limitations
-
-- Requires Claude CLI installed and authenticated locally.
-- Codex does not hot-reload skills — restart the session after `cp`.
-- Broad `--write-scope` values (`.` or `/`) are unsafe; always scope to the minimum required directory.
-- Session resumption depends on Claude CLI's `--session-id` support; behaviour may vary across CLI versions.
-
----
+**Why is `bypassPermissions` not an option?**
+Deliberately excluded. Only `default`, `acceptEdits`, and `autoEdit` are accepted.
 
 ## Contributing
 
-Issues and PRs welcome. Keep it stdlib-only — no new runtime dependencies.
+Issues and PRs welcome — keep it stdlib-only, no new runtime dependencies.
