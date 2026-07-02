@@ -6,6 +6,7 @@ Output: demo-video/renders/codex-claude-subagents-demo-v2.mp4
 """
 import subprocess
 import textwrap
+import urllib.request
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
@@ -15,6 +16,7 @@ W, H = 1920, 1080
 FRAMES_DIR = Path("/tmp/demo_frames_v2")
 SCRIPT_DIR = Path(__file__).resolve().parent
 RENDERS = SCRIPT_DIR.parent / "renders"
+FONTS_DIR = SCRIPT_DIR.parent / "assets" / "fonts"
 
 # ── Colors ────────────────────────────────────────────────────────────────────
 BG      = (11,  16,  32)
@@ -22,18 +24,57 @@ PANEL   = (18,  26,  47)
 PANEL2  = (24,  35,  61)
 FG      = (231, 237, 247)
 MUTED   = (159, 176, 200)
-ACCENT  = (244, 184,  96)
+ACCENT  = (224, 122,  84)   # warm clay — was amber-gold
 SUCCESS = (103, 211, 145)
 ERR     = (240,  88,  76)
 
 # ── Fonts ─────────────────────────────────────────────────────────────────────
-MONO   = "/usr/share/fonts/truetype/ubuntu/UbuntuMono-R.ttf"
-MONO_B = "/usr/share/fonts/truetype/ubuntu/UbuntuMono-B.ttf"
-SANS   = "/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf"
-SANS_B = "/usr/share/fonts/truetype/ubuntu/Ubuntu-B.ttf"
+# Variable fonts, fetched once from Google Fonts (OFL) into a gitignored cache.
+_FONT_SOURCES = {
+    "SpaceGrotesk[wght].ttf": "ofl/spacegrotesk/SpaceGrotesk%5Bwght%5D.ttf",
+    "Inter[opsz,wght].ttf": "ofl/inter/Inter%5Bopsz,wght%5D.ttf",
+    "JetBrainsMono[wght].ttf": "ofl/jetbrainsmono/JetBrainsMono%5Bwght%5D.ttf",
+}
+_RAW_BASE = "https://raw.githubusercontent.com/google/fonts/main/"
 
-def F(path, size):
-    return ImageFont.truetype(path, size)
+
+def ensure_fonts() -> None:
+    FONTS_DIR.mkdir(parents=True, exist_ok=True)
+    for name, rel in _FONT_SOURCES.items():
+        dest = FONTS_DIR / name
+        if dest.exists() and dest.stat().st_size > 0:
+            continue
+        print(f"  fetching font {name}...")
+        urllib.request.urlretrieve(_RAW_BASE + rel, dest)
+
+
+DISPLAY = FONTS_DIR / "SpaceGrotesk[wght].ttf"   # headlines
+TEXT    = FONTS_DIR / "Inter[opsz,wght].ttf"      # body/labels/captions
+MONO    = FONTS_DIR / "JetBrainsMono[wght].ttf"   # terminal/code
+
+
+def display(size, weight=700):
+    fnt = ImageFont.truetype(str(DISPLAY), size)
+    fnt.set_variation_by_axes([weight])
+    return fnt
+
+
+def body(size, weight=400):
+    fnt = ImageFont.truetype(str(TEXT), size)
+    fnt.set_variation_by_axes([min(32, size), weight])
+    return fnt
+
+
+def mono(size, weight=400):
+    fnt = ImageFont.truetype(str(MONO), size)
+    fnt.set_variation_by_axes([weight])
+    return fnt
+
+
+def tracked(text, gap=" "):
+    """Manual letter-spacing for small uppercase eyebrow labels (PIL has no tracking)."""
+    return gap.join(text)
+
 
 def alpha_color(color, a):
     return tuple(int(c * min(1.0, max(0.0, a))) for c in color)
@@ -56,31 +97,41 @@ def terminal_chrome(draw, x, y, w, h, title="bash"):
     draw.rounded_rectangle([x, y, x+w, y+42], radius=r, fill=PANEL2)
     draw.rectangle([x, y+30, x+w, y+42], fill=PANEL2)  # flatten bottom of bar
     # window dots
-    for i, c in enumerate([(235,80,80), (244,184,96), (103,211,145)]):
+    for i, c in enumerate([(235,80,80), ACCENT, (103,211,145)]):
         draw.ellipse([x+16+i*24, y+14, x+30+i*24, y+28], fill=c)
     # title label
-    tf = F(SANS, 13)
+    tf = mono(13)
     tw = text_w(draw, title, tf)
     draw.text((x + (w - tw)//2, y+12), title, font=tf, fill=MUTED)
 
 def fade(t, start, dur=0.4):
-    return min(1.0, max(0.0, (t - start) / dur))
+    """Ease-out cubic — smoother, less mechanical than a linear ramp."""
+    x = min(1.0, max(0.0, (t - start) / dur))
+    return 1 - (1 - x) ** 3
+
+def rise(t, start, dur=0.5, px=20):
+    """Vertical settle: element starts px below and eases up as it fades in."""
+    return int(px * (1 - fade(t, start, dur)))
 
 
 # ── Scene 1: Title ───────────────────────────────────────────────────────────
 def scene_title(n):
-    h1 = F(SANS_B, 74)
-    h2 = F(SANS,   32)
-    h3 = F(MONO,   22)
+    eyebrow = display(20, 600)
+    h1 = display(78, 700)
+    h2 = body(32, 440)
+    h3 = mono(22, 500)
     frames = []
     for i in range(n):
         t = i / FPS
         img = base()
         d = ImageDraw.Draw(img)
 
-        a1 = fade(t, 0.0, 0.7)
-        a2 = fade(t, 1.1, 0.6)
+        a0 = fade(t, 0.0, 0.5)
+        a1 = fade(t, 0.35, 0.7)
+        a2 = fade(t, 1.2, 0.6)
         a3 = fade(t, 2.3, 0.5)
+
+        centered(d, tracked("CODEX SKILL"), H//2 - 158 + rise(t, 0.0, 0.5, 14), eyebrow, alpha_color(ACCENT, a0))
 
         # accent bar
         if a1 > 0:
@@ -88,18 +139,17 @@ def scene_title(n):
             bx = (W - bar_w) // 2
             d.rectangle([bx, H//2 - 88, bx + bar_w, H//2 - 83], fill=alpha_color(ACCENT, a1))
 
-        centered(d, "codex-claude-subagents", H//2 - 70, h1, alpha_color(FG, a1))
-        centered(d, "Codex leads. Claude works. The logs prove it.", H//2 + 24, h2, alpha_color(MUTED, a2))
-        centered(d, "cp -R skills/claude-subagents ~/.codex/skills/", H//2 + 84, h3, alpha_color(ACCENT, a3))
+        centered(d, "codex-claude-subagents", H//2 - 70 + rise(t, 0.35, 0.6), h1, alpha_color(FG, a1))
+        centered(d, "Codex leads. Claude works. The logs prove it.", H//2 + 26 + rise(t, 1.2, 0.5), h2, alpha_color(MUTED, a2))
+        centered(d, "cp -R skills/claude-subagents ~/.codex/skills/", H//2 + 86 + rise(t, 2.3, 0.5), h3, alpha_color(ACCENT, a3))
         frames.append(img)
     return frames
 
 
 # ── Scene 2: Terminal — command + live log ───────────────────────────────────
 def scene_terminal(n):
-    M20 = F(MONO, 20)
-    M18 = F(MONO, 18)
-    S14 = F(SANS, 14)
+    M20 = mono(20)
+    M18 = mono(18)
 
     TX, TY = 100, 72
     TW, TH = W - 200, H - 144
@@ -202,10 +252,8 @@ def scene_terminal(n):
 
 # ── Scene 3: Ledger ──────────────────────────────────────────────────────────
 def scene_ledger(n):
-    M20 = F(MONO, 20)
-    M18 = F(MONO, 18)
-    SB  = F(SANS_B, 24)
-    S18 = F(SANS, 18)
+    M20 = mono(20)
+    S18 = body(18)
 
     TX, TY = 100, 80
     TW, TH = W - 200, H - 160
@@ -267,14 +315,12 @@ def scene_ledger(n):
 
 # ── Scene 4: Summary / audit findings ────────────────────────────────────────
 def scene_summary(n):
-    M18 = F(MONO, 18)
-    M16 = F(MONO, 16)
-    SB  = F(SANS_B, 22)
-    S16 = F(SANS, 16)
+    M18 = mono(18)
+    SB  = body(22, 700)
 
     TX, TY = 100, 70
     TW, TH = W - 200, H - 140
-    LPAD = 32
+    LPAD = 34
     LINE_H = 29
 
     OUTCOME = (
@@ -299,6 +345,12 @@ def scene_summary(n):
         "[ok]  Stdlib-only -- no CVE surface from dependencies",
     ]
 
+    # One spacing scale for the whole card — no more ad-hoc magic numbers.
+    HEAD_GAP    = 30   # heading text -> its own body content
+    SECTION_GAP = 42   # end of a section's body -> next heading
+    HEADER_GAP  = 20   # column-header underline -> first table row
+    ROW_GAP     = 16   # between table rows
+
     frames = []
     for i in range(n):
         t = i / FPS
@@ -311,42 +363,49 @@ def scene_summary(n):
         # Outcome
         a1 = fade(t, 0.2, 0.5)
         d.text((TX+LPAD, y), "## Outcome", font=SB, fill=alpha_color(ACCENT, a1))
-        y += 34
+        y += HEAD_GAP
         for line in textwrap.wrap(OUTCOME, width=105):
             d.text((TX+LPAD, y), line, font=M18, fill=alpha_color(FG, a1))
             y += LINE_H - 2
-        y += 12
+        y += SECTION_GAP
 
         # Findings header
         a2 = fade(t, 1.0, 0.4)
         d.text((TX+LPAD, y), "## Findings", font=SB, fill=alpha_color(ACCENT, a2))
-        y += 34
+        y += HEAD_GAP
 
-        # Table header
-        d.text((TX+LPAD, y), f"{'Severity':<9}  {'Location':<37}  Issue", font=M18, fill=alpha_color(MUTED, a2))
-        y += 6
+        # Table header — true monospace columns, one source of truth for every offset.
+        SEV_W, LOC_W = 9, 37
+        char_w = text_w(d, "0", M18)
+        loc_x = TX + LPAD + char_w * (SEV_W + 2)
+        issue_x = loc_x + char_w * (LOC_W + 2)
+
+        d.text((TX+LPAD, y), f"{'Severity':<{SEV_W}}", font=M18, fill=alpha_color(MUTED, a2))
+        d.text((loc_x, y), f"{'Location':<{LOC_W}}", font=M18, fill=alpha_color(MUTED, a2))
+        d.text((issue_x, y), "Issue", font=M18, fill=alpha_color(MUTED, a2))
+        y += LINE_H - 4
         bar_a = fade(t, 1.1, 0.3)
         if bar_a > 0:
             d.rectangle([TX+LPAD, y, TX+TW-LPAD, y+1], fill=alpha_color(MUTED, bar_a))
-        y += 14
+        y += HEADER_GAP
 
         for fi, (sev, loc, issue) in enumerate(FINDINGS):
             row_a = fade(t, 1.5 + fi * 0.55, 0.35)
             sev_col = ERR if "MEDIUM" in sev else MUTED
-            d.text((TX+LPAD, y), f"{sev:<9}", font=M18, fill=alpha_color(sev_col, row_a))
-            d.text((TX+LPAD + text_w(d, "MEDIUM    ", M18), y), f"  {loc:<37}", font=M18, fill=alpha_color(MUTED, row_a))
+            d.text((TX+LPAD, y), f"{sev:<{SEV_W}}", font=M18, fill=alpha_color(sev_col, row_a))
+            d.text((loc_x, y), f"{loc:<{LOC_W}}", font=M18, fill=alpha_color(MUTED, row_a))
             # issue may wrap
-            issue_x = TX+LPAD + text_w(d, f"MEDIUM      {loc:<37}  ", M18)
             wrapped = textwrap.wrap(issue, width=40)
             for wl in wrapped:
                 d.text((issue_x, y), wl, font=M18, fill=alpha_color(FG, row_a))
                 y += LINE_H
-        y += 12
+            y += ROW_GAP
+        y += SECTION_GAP - ROW_GAP
 
         # Checks
         a3 = fade(t, 3.2, 0.4)
         d.text((TX+LPAD, y), "## Verification", font=SB, fill=alpha_color(ACCENT, a3))
-        y += 34
+        y += HEAD_GAP
         for ci, chk in enumerate(CHECKS):
             ca = fade(t, 3.6 + ci * 0.3, 0.25)
             if ca > 0:
@@ -363,10 +422,10 @@ def scene_summary(n):
 
 # ── Scene 5: End card ─────────────────────────────────────────────────────────
 def scene_endcard(n):
-    SB60 = F(SANS_B, 64)
-    S28  = F(SANS,   28)
-    M22  = F(MONO,   22)
-    M16  = F(MONO,   16)
+    SB60 = display(64, 700)
+    S28  = body(28)
+    M22  = mono(22, 500)
+    M16  = mono(16)
 
     install = "cp -R skills/claude-subagents ~/.codex/skills/"
 
@@ -407,6 +466,7 @@ def scene_endcard(n):
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 def main():
+    ensure_fonts()
     FRAMES_DIR.mkdir(parents=True, exist_ok=True)
     for f in FRAMES_DIR.glob("frame_*.png"):
         f.unlink()
