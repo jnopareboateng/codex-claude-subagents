@@ -54,7 +54,7 @@ The launcher injects a preamble into every prompt:
 
 ## Concurrency and feedback model
 
-Each launcher call blocks until the Claude worker exits — one worker at a time per call. To run workers in parallel, background multiple launcher calls with distinct `--task` IDs. Per-task log files do not collide, but `ledger.json` has no write lock; simultaneous completions can lose a ledger entry.
+Each launcher call blocks until the Claude worker exits — one worker at a time per call. To run workers in parallel, background multiple launcher calls with distinct `--task` IDs. Per-task log files do not collide; `ledger.json` writes are file-locked and use a per-process temp file, so simultaneous completions cannot race or lose an entry. If a session is already in use, the run is marked `status: locked` and the launcher exits `3`.
 
 Feedback is post-hoc: Codex receives nothing until the worker finishes and writes its summary. There is no mid-run signalling in either direction. To monitor progress during a long run, tail `.agent-runs/claude/<task>.jsonl` from a separate shell.
 

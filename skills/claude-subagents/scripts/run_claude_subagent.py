@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -11,12 +13,49 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+try:
+    import fcntl
+
+    def _lock(fh) -> None:
+        fcntl.flock(fh, fcntl.LOCK_EX)
+
+    def _unlock(fh) -> None:
+        fcntl.flock(fh, fcntl.LOCK_UN)
+except ImportError:  # Windows
+    import msvcrt
+
+    def _lock(fh) -> None:
+        fh.seek(0, 2)
+        if fh.tell() == 0:
+            fh.write(b"0")
+            fh.flush()
+        fh.seek(0)
+        msvcrt.locking(fh.fileno(), msvcrt.LK_LOCK, 1)  # type: ignore[attr-defined]
+
+    def _unlock(fh) -> None:
+        fh.seek(0)
+        msvcrt.locking(fh.fileno(), msvcrt.LK_UNLCK, 1)  # type: ignore[attr-defined]
+
 _TASK_ID_RE = re.compile(r"^[a-z0-9][a-z0-9\-]{0,63}$")
 _SAFE_PERMISSION_MODES = ("default", "acceptEdits", "autoEdit")
+_SESSION_LOCKED_RE = re.compile(r"session id .* already in use", re.IGNORECASE)
 
 
 def now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+@contextlib.contextmanager
+def ledger_lock(ledger_path: Path):
+    """Serialize ledger read-modify-write across concurrent launcher processes."""
+    lock_path = ledger_path.with_name(ledger_path.name + ".lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with lock_path.open("a+b") as fh:
+        _lock(fh)
+        try:
+            yield
+        finally:
+            _unlock(fh)
 
 
 def load_ledger(path: Path) -> dict:
@@ -30,7 +69,8 @@ def load_ledger(path: Path) -> dict:
 
 def save_ledger(path: Path, data: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(".tmp")
+    # Per-process/unique name: two concurrent writers must never share a tmp path.
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
     tmp.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
     tmp.replace(path)
 
@@ -179,7 +219,6 @@ CLAUDE WORKER CONTRACT
     stored_prompt_path.write_text(full_prompt)
 
     # ── ledger: record run as started ────────────────────────────────────────
-    ledger = load_ledger(ledger_path)
     run = {
         "task_id": task_id,
         "session_id": session_id,
@@ -195,9 +234,11 @@ CLAUDE WORKER CONTRACT
         "finished_at": None,
         "returncode": None,
     }
-    ledger["runs"] = [r for r in ledger.get("runs", []) if r.get("task_id") != task_id]
-    ledger["runs"].append(run)
-    save_ledger(ledger_path, ledger)
+    with ledger_lock(ledger_path):
+        ledger = load_ledger(ledger_path)
+        ledger["runs"] = [r for r in ledger.get("runs", []) if r.get("task_id") != task_id]
+        ledger["runs"].append(run)
+        save_ledger(ledger_path, ledger)
 
     # ── launch claude worker ─────────────────────────────────────────────────
     cmd = [
@@ -220,19 +261,38 @@ CLAUDE WORKER CONTRACT
         return 2
 
     # ── ledger: record completion ────────────────────────────────────────────
-    ledger = load_ledger(ledger_path)
-    for item in ledger.get("runs", []):
-        if item.get("task_id") == task_id:
-            item["status"] = "complete" if proc.returncode == 0 and summary_path.exists() else "needs-attention"
-            item["finished_at"] = now()
-            item["returncode"] = proc.returncode
-            item["summary_exists"] = summary_path.exists()
-            break
-    save_ledger(ledger_path, ledger)
+    stderr_text = stderr_path.read_text(errors="replace") if stderr_path.exists() else ""
+    session_locked = bool(_SESSION_LOCKED_RE.search(stderr_text))
+    if session_locked:
+        status = "locked"
+    elif proc.returncode == 0 and summary_path.exists():
+        status = "complete"
+    else:
+        status = "needs-attention"
+
+    with ledger_lock(ledger_path):
+        ledger = load_ledger(ledger_path)
+        for item in ledger.get("runs", []):
+            if item.get("task_id") == task_id:
+                item["status"] = status
+                item["finished_at"] = now()
+                item["returncode"] = proc.returncode
+                item["summary_exists"] = summary_path.exists()
+                break
+        save_ledger(ledger_path, ledger)
+
+    if session_locked:
+        print(
+            f"session {session_id} is already in use by another Claude process.\n"
+            "Wait for it to exit, then resume with the same --session-id, or start "
+            "a new task with a fresh session id.",
+            file=sys.stderr,
+        )
 
     print(json.dumps({
         "task_id": task_id,
         "session_id": session_id,
+        "status": status,
         "returncode": proc.returncode,
         "log_path": str(log_path),
         "stderr_path": str(stderr_path),
@@ -241,6 +301,8 @@ CLAUDE WORKER CONTRACT
         "resume": f"--session-id {session_id}",
     }, indent=2))
 
+    if session_locked:
+        return 3
     return 0 if proc.returncode == 0 and summary_path.exists() else 1
 
 
