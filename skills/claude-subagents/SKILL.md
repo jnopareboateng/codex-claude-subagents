@@ -136,9 +136,9 @@ workers read-only and integrate their findings in Codex.
 
 ## Codex-owned monitoring
 
-Claude Code is not the monitoring loop. Codex uses Monitor plus a
-ScheduledWakeup/heartbeat automation only while one or more detached workers
-are active.
+Claude Code is not the monitoring loop. Codex uses an automation/heartbeat
+only while one or more detached workers are active. The automation wakes Codex
+for a bounded watcher turn; it is not a separate daemon or `Monitor` API.
 
 The monitor reads the launcher ledger, PID files, stderr, and summary files and
 models each task with these states:
@@ -156,9 +156,10 @@ remains. The automation must not edit project source files. It may request a
 resume or restart only after confirming the old process is gone and the task's
 session/ledger state makes that safe.
 
-This separation is normative: Claude workers do the work, while Codex
-Monitor/ScheduledWakeup owns waiting. Never hold a single shell call open for
-the entire worker lifetime and never treat a partial JSONL stream as completion.
+This separation is normative: Claude workers do the work, while the
+automation-triggered Codex turn owns waiting and state inspection. Never hold a
+single shell call open for the entire worker lifetime and never treat a partial
+JSONL stream as completion.
 
 ## Example prompts
 
