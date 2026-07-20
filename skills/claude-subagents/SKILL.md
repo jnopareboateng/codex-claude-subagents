@@ -28,7 +28,7 @@ python3 ~/.codex/skills/claude-subagents/scripts/run_claude_subagent.py \
 |---|---|---|
 | `--task` | yes | Unique task identifier used for log filenames |
 | `--prompt` | yes | Path to the prompt file Codex provides |
-| `--write-scope` | no | Directory the worker is allowed to write to (empty = read-only) |
+| `--write-scope` | no | Directory the worker is allowed to write to; repeat for shared control logs plus a disjoint task scope |
 | `--session-id` | no | Resume a previous Claude session by ID |
 | `--model` | no | Claude model, default `sonnet` |
 | `--effort` | no | Reasoning effort, default `high` |
@@ -117,15 +117,17 @@ for i in "${!tasks[@]}"; do
     --prompt "${prompts[$i]}" \
     --model sonnet \
     --effort high \
+    --write-scope .agent-runs/claude \
     --write-scope "${scopes[$i]}" \
     >"$run_dir/${tasks[$i]}.launcher.log" 2>&1 &
   echo $! >"$run_dir/${tasks[$i]}.launcher.pid"
 done
 ```
 
-Do not fan out tasks with overlapping write scopes. If tasks need to modify the
-same file, serialize them or make the first workers read-only and integrate
-their findings in Codex.
+The shared `.agent-runs/claude` scope is intentional: each task writes distinct
+task-named control files there. The project-write scopes must not overlap. If
+tasks need to modify the same source file, serialize them or make the first
+workers read-only and integrate their findings in Codex.
 
 ## Requirements
 
