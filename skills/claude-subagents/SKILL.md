@@ -39,15 +39,25 @@ workers should be read-only; workers that must write summaries may write only
 
 ## Logs
 
-All logs are written under `.agent-runs/claude/` in the current working directory. This path is automatically added to `.gitignore`.
+All logs are written under `.agent-runs/claude/` in the current working directory. This path is automatically added to `.gitignore`. Each task gets its own subdirectory; only `ledger.json` is shared.
+
+```
+.agent-runs/claude/
+├── ledger.json
+└── <task>/
+    ├── stream.jsonl
+    ├── stderr.log
+    ├── prompt.md
+    └── summary.md
+```
 
 | File | Contents |
 |---|---|
 | `ledger.json` | Indexed record of all runs (task, session ID, timestamp, exit code) |
-| `<task>.jsonl` | Streaming structured output from claude |
-| `<task>.stderr.log` | stderr from the claude process |
-| `<task>.prompt.md` | The full injected prompt (worker contract + user prompt) |
-| `<task>.summary.md` | Final summary written by the Claude worker |
+| `<task>/stream.jsonl` | Streaming structured output from claude |
+| `<task>/stderr.log` | stderr from the claude process |
+| `<task>/prompt.md` | The full injected prompt (worker contract + user prompt) |
+| `<task>/summary.md` | Final summary written by the Claude worker |
 
 ## Worker contract
 
@@ -56,7 +66,7 @@ The launcher injects a preamble into every prompt:
 - Codex is lead orchestrator; Claude is a scoped worker.
 - Writes are restricted to `--write-scope`.
 - Raw logs are handled by the launcher; the worker must not summarise to stdout.
-- The worker must write its final compact summary to `.agent-runs/claude/<task>.summary.md`.
+- The worker must write its final compact summary to `.agent-runs/claude/<task>/summary.md`.
 - The launcher defaults to Sonnet with high reasoning effort.
 
 ## Concurrency and feedback model
@@ -67,8 +77,8 @@ outlive one tool-call window, detach it and persist the launcher PID:
 ```bash
 repo=/path/to/repo
 task=modelmeta-spec-debate
-run_dir="$repo/.agent-runs/claude"
-mkdir -p "$run_dir"
+task_dir="$repo/.agent-runs/claude/$task"
+mkdir -p "$task_dir"
 nohup python3 ~/.codex/skills/claude-subagents/scripts/run_claude_subagent.py \
   --cwd "$repo" \
   --task "$task" \
@@ -76,8 +86,8 @@ nohup python3 ~/.codex/skills/claude-subagents/scripts/run_claude_subagent.py \
   --model sonnet \
   --effort high \
   --write-scope .agent-runs/claude \
-  >"$run_dir/$task.launcher.log" 2>&1 &
-echo $! >"$run_dir/$task.launcher.pid"
+  >"$task_dir/launcher.log" 2>&1 &
+echo $! >"$task_dir/launcher.pid"
 ```
 
 Per-task logs do not collide; `ledger.json` is file-locked. A session ID must
@@ -110,7 +120,7 @@ scopes=(
 )
 
 for i in "${!tasks[@]}"; do
-  mkdir -p "$repo/${scopes[$i]}"
+  mkdir -p "$repo/${scopes[$i]}" "$run_dir/${tasks[$i]}"
   nohup python3 ~/.codex/skills/claude-subagents/scripts/run_claude_subagent.py \
     --cwd "$repo" \
     --task "${tasks[$i]}" \
@@ -119,8 +129,8 @@ for i in "${!tasks[@]}"; do
     --effort high \
     --write-scope .agent-runs/claude \
     --write-scope "${scopes[$i]}" \
-    >"$run_dir/${tasks[$i]}.launcher.log" 2>&1 &
-  echo $! >"$run_dir/${tasks[$i]}.launcher.pid"
+    >"$run_dir/${tasks[$i]}/launcher.log" 2>&1 &
+  echo $! >"$run_dir/${tasks[$i]}/launcher.pid"
 done
 ```
 

@@ -58,7 +58,7 @@ scoped to `src/auth`."*
 
 | Flag | Required | Meaning |
 |---|---|---|
-| `--task` | yes | kebab-case task id — keys every log file |
+| `--task` | yes | kebab-case task id — names the run's log directory |
 | `--prompt` | yes | markdown prompt file sent to the worker |
 | `--write-scope` | no | dir Claude may edit (repeatable); omit = read-only |
 | `--session-id` | no | resume a previous Claude session |
@@ -67,9 +67,10 @@ scoped to `src/auth`."*
 
 ## Logs and the worker contract
 
-Every run writes to `.agent-runs/claude/` (auto-gitignored): `ledger.json`
-(index — session id, status, paths), `<task>.jsonl` (stream), `<task>.summary.md`
-(the worker's own report), `<task>.stderr.log`, `<task>.prompt.md`.
+Every run writes to `.agent-runs/claude/<task>/` (auto-gitignored): `stream.jsonl`,
+`stderr.log`, `prompt.md`, and `summary.md` (the worker's own report). A single
+`ledger.json` at `.agent-runs/claude/` indexes every task by session id, status,
+and path.
 
 Every prompt is prepended with a contract: Codex leads, Claude stays inside
 `--write-scope`, and the worker must leave a summary covering Outcome, Files
@@ -86,8 +87,10 @@ The run is marked `status: locked` in the ledger and exits `3`, instead of
 failing silently.
 
 **Can Codex see progress mid-run?**
-No — feedback is post-hoc. Tail the task's `.jsonl` from another shell for
-live visibility.
+Not live — feedback is post-hoc via the summary and ledger. For detached,
+long-running workers, Codex uses a bounded monitoring automation instead of
+polling a held-open shell call (see `SKILL.md`); you can still tail
+`.agent-runs/claude/<task>/stream.jsonl` from another shell for raw visibility.
 
 **Why is `bypassPermissions` not an option?**
 Deliberately excluded. Only `default`, `acceptEdits`, and `autoEdit` are accepted.

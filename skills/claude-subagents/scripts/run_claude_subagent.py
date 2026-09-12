@@ -185,15 +185,16 @@ def main() -> int:
 
     # ── set up run directory ─────────────────────────────────────────────────
     ensure_agent_runs_ignored(cwd)
-    run_dir = cwd / ".agent-runs" / "claude"
-    run_dir.mkdir(parents=True, exist_ok=True)
+    run_root = cwd / ".agent-runs" / "claude"
+    task_dir = run_root / task_id
+    task_dir.mkdir(parents=True, exist_ok=True)
 
     name = args.name or task_id
-    log_path = run_dir / f"{task_id}.jsonl"
-    stderr_path = run_dir / f"{task_id}.stderr.log"
-    summary_path = run_dir / f"{task_id}.summary.md"
-    stored_prompt_path = run_dir / f"{task_id}.prompt.md"
-    ledger_path = run_dir / "ledger.json"
+    log_path = task_dir / "stream.jsonl"
+    stderr_path = task_dir / "stderr.log"
+    summary_path = task_dir / "summary.md"
+    stored_prompt_path = task_dir / "prompt.md"
+    ledger_path = run_root / "ledger.json"
 
     scope_text = (
         "\n".join(f"- {p}" for p in write_scope)
