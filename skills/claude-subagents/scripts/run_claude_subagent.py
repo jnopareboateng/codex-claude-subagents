@@ -41,6 +41,38 @@ _SAFE_PERMISSION_MODES = ("default", "acceptEdits", "autoEdit")
 _SESSION_LOCKED_RE = re.compile(r"session id .* already in use", re.IGNORECASE)
 
 
+_MODEL_FAMILY_RE = re.compile(r"(?<![a-z])(fable|opus|sonnet|haiku)(?![a-z])")
+
+
+def resolve_model(requested: str) -> str:
+    """Map any Claude slug ("sonnet 4.5", "claude-opus-4-1") to its family alias.
+
+    The CLI resolves `fable|opus|sonnet|haiku` to the latest release for the
+    provider, so a mentioned slug never pins an old version. Unrecognised values
+    (e.g. `opusplan`, non-Claude names) pass through untouched.
+    """
+    m = _MODEL_FAMILY_RE.search(requested.lower())
+    if not m:
+        return requested
+    return m.group(1) + ("[1m]" if "[1m]" in requested.lower() else "")
+
+
+def resolved_model_from_stream(log_path: Path) -> str | None:
+    """Concrete model id the CLI actually used, from the stream's init event."""
+    try:
+        with log_path.open(errors="replace") as fh:
+            for line in fh:
+                try:
+                    event = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if event.get("type") == "system" and event.get("subtype") == "init":
+                    return event.get("model")
+    except OSError:
+        pass
+    return None
+
+
 def now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -109,7 +141,10 @@ def main() -> int:
         help="Existing UUID to resume; a fresh one is generated when omitted.",
     )
     parser.add_argument("--name", default="", help="Claude session display name; defaults to task id.")
-    parser.add_argument("--model", default="sonnet")
+    parser.add_argument(
+        "--model", default="sonnet",
+        help="Model slug; any fable/opus/sonnet/haiku mention resolves to that family's latest release.",
+    )
     parser.add_argument(
         "--effort", default="high",
         choices=["low", "medium", "high", "xhigh", "max"],
@@ -189,6 +224,7 @@ def main() -> int:
     task_dir = run_root / task_id
     task_dir.mkdir(parents=True, exist_ok=True)
 
+    model = resolve_model(args.model)
     name = args.name or task_id
     log_path = task_dir / "stream.jsonl"
     stderr_path = task_dir / "stderr.log"
@@ -225,6 +261,8 @@ CLAUDE WORKER CONTRACT
         "session_id": session_id,
         "name": name,
         "status": "running",
+        "model_requested": args.model,
+        "model_alias": model,
         "cwd": str(cwd),
         "write_scope": write_scope,
         "prompt_path": str(stored_prompt_path),
@@ -244,7 +282,7 @@ CLAUDE WORKER CONTRACT
     # ── launch claude worker ─────────────────────────────────────────────────
     cmd = [
         "claude", "-p",
-        "--model", args.model,
+        "--model", model,
         "--effort", args.effort,
         "--name", name,
         "--session-id", session_id,
@@ -271,10 +309,12 @@ CLAUDE WORKER CONTRACT
     else:
         status = "needs-attention"
 
+    model_resolved = resolved_model_from_stream(log_path)
     with ledger_lock(ledger_path):
         ledger = load_ledger(ledger_path)
         for item in ledger.get("runs", []):
             if item.get("task_id") == task_id:
+                item["model_resolved"] = model_resolved
                 item["status"] = status
                 item["finished_at"] = now()
                 item["returncode"] = proc.returncode
@@ -294,6 +334,7 @@ CLAUDE WORKER CONTRACT
         "task_id": task_id,
         "session_id": session_id,
         "status": status,
+        "model": model_resolved or model,
         "returncode": proc.returncode,
         "log_path": str(log_path),
         "stderr_path": str(stderr_path),

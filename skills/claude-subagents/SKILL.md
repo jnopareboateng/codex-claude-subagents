@@ -30,12 +30,34 @@ python3 ~/.codex/skills/claude-subagents/scripts/run_claude_subagent.py \
 | `--prompt` | yes | Path to the prompt file Codex provides |
 | `--write-scope` | no | Directory the worker is allowed to write to; repeat for shared control logs plus a disjoint task scope |
 | `--session-id` | no | Resume a previous Claude session by ID |
-| `--model` | no | Claude model, default `sonnet` |
+| `--model` | no | Claude model slug, default `sonnet`; see [Model resolution](#model-resolution) |
 | `--effort` | no | Reasoning effort, default `high` |
 
 Always pass an explicit `--cwd`. Use the smallest possible write scope. Review
 workers should be read-only; workers that must write summaries may write only
 `.agent-runs/claude`.
+
+## Model resolution
+
+Whenever a model is mentioned (by the user or in a plan), pass its slug as
+given to `--model`; never invent or hardcode a versioned ID. The launcher maps
+any `fable`/`opus`/`sonnet`/`haiku` mention (`sonnet 4.5`, `claude-opus-4-1`,
+`Opus`) to the family alias, which the Claude CLI resolves to that family's
+latest release. `sonnet[1m]` keeps its suffix; anything else (`opusplan`,
+non-Claude names) passes through unchanged, and the CLI silently falls back to
+its default for names it does not recognise. If you cannot verify such a name
+(`claude --help`, CLI docs), omit `--model` rather than guess.
+
+The ledger records `model_requested`, `model_alias`, and `model_resolved` (the
+concrete ID from the stream's init event), and the launcher's JSON output
+reports `model`. Check it rather than assuming.
+
+Aliases track the latest release only on the Anthropic API. On Bedrock, Vertex,
+or Foundry they may lag; the provider-side pin is
+`ANTHROPIC_DEFAULT_{FABLE,OPUS,SONNET,HAIKU}_MODEL`
+([docs](https://code.claude.com/docs/en/model-config)). Verified: on the
+Anthropic API, `sonnet`/`opus`/`haiku`/`fable` resolve to the current latest of
+each.
 
 ## Logs
 
@@ -67,7 +89,7 @@ The launcher injects a preamble into every prompt:
 - Writes are restricted to `--write-scope`.
 - Raw logs are handled by the launcher; the worker must not summarise to stdout.
 - The worker must write its final compact summary to `.agent-runs/claude/<task>/summary.md`.
-- The launcher defaults to Sonnet with high reasoning effort.
+- The launcher defaults to the latest Sonnet with high reasoning effort.
 
 ## Concurrency and feedback model
 

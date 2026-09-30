@@ -62,7 +62,7 @@ scoped to `src/auth`."*
 | `--prompt` | yes | markdown prompt file sent to the worker |
 | `--write-scope` | no | dir Claude may edit (repeatable); omit = read-only |
 | `--session-id` | no | resume a previous Claude session |
-| `--model` / `--effort` | no | default `sonnet` / `high` |
+| `--model` / `--effort` | no | default `sonnet` / `high`; any `fable`/`opus`/`sonnet`/`haiku` slug resolves to that family's latest release |
 | `--permission-mode` | no | default `acceptEdits` — `bypassPermissions` is rejected |
 
 ## Logs and the worker contract

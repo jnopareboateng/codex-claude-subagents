@@ -23,6 +23,8 @@ instructions: |
   6. To resume an interrupted run, pass `--session-id <id>` from `ledger.json`.
 
   Rules:
+  - When a model is named, pass its slug to `--model` as given (e.g. "opus", "sonnet 4.5");
+    the launcher resolves it to that family's latest release. Never hardcode a versioned ID.
   - Never broaden the write scope beyond what the task strictly requires.
   - Never expose `.agent-runs/` contents to the user verbatim — summarise instead.
   - If the worker exits non-zero, read `.agent-runs/claude/<task-id>.stderr.log` for diagnosis.

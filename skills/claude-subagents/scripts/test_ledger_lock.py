@@ -42,5 +42,20 @@ def demo() -> None:
     print(f"ok: {len(task_ids)} concurrent writers, no lost ledger entries")
 
 
+def model_demo() -> None:
+    from run_claude_subagent import resolve_model
+
+    cases = {
+        "sonnet": "sonnet", "Opus": "opus", "haiku": "haiku", "fable": "fable",
+        "sonnet 4.5": "sonnet", "claude-opus-4-1": "opus",
+        "claude-sonnet-4-5-20250929": "sonnet", "sonnet[1m]": "sonnet[1m]",
+        "opusplan": "opusplan", "gpt-6-sol": "gpt-6-sol",
+    }
+    for given, want in cases.items():
+        assert resolve_model(given) == want, (given, resolve_model(given), want)
+    print(f"ok: {len(cases)} model slugs resolve to family aliases")
+
+
 if __name__ == "__main__":
     demo()
+    model_demo()
