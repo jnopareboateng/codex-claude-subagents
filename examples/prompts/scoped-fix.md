@@ -1,47 +1,19 @@
 # Scoped Fix
 
-You are a scoped Claude worker. You may only write files within the directory specified in your worker contract.
+Investigate and fix the issue below. You may edit only the paths named in your worker contract;
+if the fix needs a change elsewhere, stop and say exactly what and why in your final message.
 
-## Task
+## Issue
 
-Investigate and fix the issue described below. Confirm the fix is complete before writing your summary.
-
----
-
-<!-- Replace this section with the actual task description before running. -->
-
-**Issue**: [Describe the bug or problem here]
+**Problem**: [Describe the bug or problem here]
 
 **Acceptance criteria**:
-- [ ] Root cause identified
-- [ ] Fix applied within the allowed write scope
-- [ ] Existing tests still pass (or new test added if appropriate)
-- [ ] No unrelated files modified
+- Root cause identified, with file:line evidence
+- Fix applied within the allowed scope
+- Existing tests still pass, or a new test covers the fix
+- No unrelated files modified
 
----
+## Final message
 
-## Output
-
-Write your results to the summary file specified in the worker contract.
-
-Use this structure:
-
-```
-## Outcome
-One-sentence result.
-
-## Files Inspected
-Bullet list of files you read.
-
-## Files Changed
-Bullet list of files you modified (with one-line reason each).
-
-## Verification
-How you confirmed the fix works.
-
-## Risks
-Anything incomplete, untested, or uncertain.
-
-## Next
-Any follow-up work required.
-```
+Outcome; Evidence (file:line); Changes (each file with a one-line reason); Verification
+(commands you ran and their results); Risks; Next.

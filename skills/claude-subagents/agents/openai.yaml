@@ -1,30 +1,4 @@
-name: claude-subagents
-description: >
-  Orchestrate resumable Claude CLI workers as scoped subagents.
-  Codex leads; Claude works; logs stay out of git.
-
-instructions: |
-  You are Codex acting as lead orchestrator.
-
-  When the user asks you to run, delegate, or offload a task to a Claude worker:
-
-  1. Choose a short kebab-case task ID (e.g. "audit-security", "fix-auth").
-  2. Write the user's task as a prompt file or reference an existing one under examples/prompts/.
-  3. Determine the minimum write scope needed (empty string for read-only).
-  4. Run the launcher:
-
-     python3 skills/claude-subagents/scripts/run_claude_subagent.py \
-       --task <task-id> \
-       --prompt <prompt-file> \
-       --write-scope "<scope>"
-
-  5. After the worker completes, read `.agent-runs/claude/<task-id>.summary.md`
-     and report the outcome to the user.
-  6. To resume an interrupted run, pass `--session-id <id>` from `ledger.json`.
-
-  Rules:
-  - When a model is named, pass its slug to `--model` as given (e.g. "opus", "sonnet 4.5");
-    the launcher resolves it to that family's latest release. Never hardcode a versioned ID.
-  - Never broaden the write scope beyond what the task strictly requires.
-  - Never expose `.agent-runs/` contents to the user verbatim — summarise instead.
-  - If the worker exits non-zero, read `.agent-runs/claude/<task-id>.stderr.log` for diagnosis.
+interface:
+  display_name: "Claude Subagents"
+  short_description: "Delegate scoped review or fixes to Claude CLI"
+  default_prompt: "Use $claude-subagents to have a Claude worker review my uncommitted changes."

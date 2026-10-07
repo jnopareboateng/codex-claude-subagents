@@ -1,198 +1,150 @@
 ---
 name: claude-subagents
-description: Use when Codex should orchestrate Claude CLI as resumable, scoped subagents with file-backed logs kept out of git.
+description: Delegate a bounded task to a Claude Code CLI worker from Codex - cross-vendor review, scoped implementation in a disjoint path, or a second opinion - with enforced permissions, a post-run scope check, and file-backed runs Codex polls and resumes.
 ---
 
 # claude-subagents
 
-Orchestrate resumable Claude CLI workers as scoped subagents from within Codex.
-Claude executes bounded work; Codex owns orchestration, monitoring, wakeups,
-state transitions, and user-facing completion reporting.
+Codex leads. A Claude worker does one bounded task non-interactively and returns a final
+message. `scripts/csa.py` (stdlib Python, WSL/Linux only) starts, supervises, reconciles and
+records every run. The worker never asks questions: anything not pre-approved is denied.
 
-## Overview
+## When to delegate
 
-Codex is always the lead orchestrator. Claude workers are scoped — each one knows its allowed write path and reports results back via structured logs.
+- Cross-vendor review of Codex's own changes (a worker never approves its own output).
+- Bounded implementation in a scope disjoint from what Codex is editing.
+- Second opinion on a design, bug, or plan.
+- Not: native-app GUI checks (Codex Desktop computer use), anything needing a human approval
+  mid-task, work that needs the web, or work that is faster to do inline. Keep those with Codex.
 
-## Usage
+## Invocation (exactly two forms)
 
+WSL shell:
 ```bash
-python3 ~/.codex/skills/claude-subagents/scripts/run_claude_subagent.py \
-  --cwd <repo-root> \
-  --task <task-id> \
-  --prompt <path-to-prompt.md> \
-  [--write-scope <directory>] \
-  [--session-id <id>]
+python3 ~/.codex/skills/claude-subagents/scripts/csa.py <verb> --cwd /home/<you>/projects/<repo> ...
+```
+Windows Codex Desktop (PowerShell):
+```powershell
+wsl.exe -d Ubuntu-22.04 -e python3 /home/<you>/.codex/skills/claude-subagents/scripts/csa.py <verb> --cwd /home/<you>/projects/<repo> ...
 ```
 
-| Argument | Required | Description |
-|---|---|---|
-| `--task` | yes | Unique task identifier used for log filenames |
-| `--prompt` | yes | Path to the prompt file Codex provides |
-| `--write-scope` | no | Directory the worker is allowed to write to; repeat for shared control logs plus a disjoint task scope |
-| `--session-id` | no | Resume a previous Claude session by ID |
-| `--model` | no | Claude model slug, default `sonnet`; see [Model resolution](#model-resolution) |
-| `--effort` | no | Reasoning effort, default `high` |
+`-e` runs no shell, so nothing is expanded: use absolute Linux paths, never `~` or `$VAR`.
+`--cwd`, `--prompt` and `--schema` also accept `\\wsl.localhost\Ubuntu-22.04\...` paths (one or
+two leading backslashes). Write each prompt as UTF-8 to `<repo>/.agent-runs/prompts/<task>.md`
+(git-ignored) and pass that path; `--prompt -` reads stdin (WSL shells). JSON output is ASCII-only.
+A `--cwd` on `/mnt/<drive>/` or `C:\` is refused unless `--allow-windows-fs`.
 
-Always pass an explicit `--cwd`. Use the smallest possible write scope. Review
-workers should be read-only; workers that must write summaries may write only
-`.agent-runs/claude`.
+## Verbs
 
-## Model resolution
-
-Whenever a model is mentioned (by the user or in a plan), pass its slug as
-given to `--model`; never invent or hardcode a versioned ID. The launcher maps
-any `fable`/`opus`/`sonnet`/`haiku` mention (`sonnet 4.5`, `claude-opus-4-1`,
-`Opus`) to the family alias, which the Claude CLI resolves to that family's
-latest release. `sonnet[1m]` keeps its suffix; anything else (`opusplan`,
-non-Claude names) passes through unchanged, and the CLI silently falls back to
-its default for names it does not recognise. If you cannot verify such a name
-(`claude --help`, CLI docs), omit `--model` rather than guess.
-
-The ledger records `model_requested`, `model_alias`, and `model_resolved` (the
-concrete ID from the stream's init event), and the launcher's JSON output
-reports `model`. Check it rather than assuming.
-
-Aliases track the latest release only on the Anthropic API. On Bedrock, Vertex,
-or Foundry they may lag; the provider-side pin is
-`ANTHROPIC_DEFAULT_{FABLE,OPUS,SONNET,HAIKU}_MODEL`
-([docs](https://code.claude.com/docs/en/model-config)). Verified: on the
-Anthropic API, `sonnet`/`opus`/`haiku`/`fable` resolve to the current latest of
-each.
-
-## Logs
-
-All logs are written under `.agent-runs/claude/` in the current working directory. This path is automatically added to `.gitignore`. Each task gets its own subdirectory; only `ledger.json` is shared.
-
-```
-.agent-runs/claude/
-├── ledger.json
-└── <task>/
-    ├── stream.jsonl
-    ├── stderr.log
-    ├── prompt.md
-    └── summary.md
-```
-
-| File | Contents |
+| Verb | Use |
 |---|---|
-| `ledger.json` | Indexed record of all runs (task, session ID, timestamp, exit code) |
-| `<task>/stream.jsonl` | Streaming structured output from claude |
-| `<task>/stderr.log` | stderr from the claude process |
-| `<task>/prompt.md` | The full injected prompt (worker contract + user prompt) |
-| `<task>/summary.md` | Final summary written by the Claude worker |
+| `start --task ID --prompt FILE\|- [--mode review\|write] [--scope REL]... [--allow-bash PREFIX]... [--worktree] [--schema FILE\|none] [--browser] [--model M] [--effort E] [--max-turns N] [--budget-usd X] [--timeout-min M] [--detach]` | New task. ID matches `^[a-z0-9][a-z0-9-]{0,63}$`; a used ID is refused (use `resume` or a new ID). |
+| `resume --task ID --prompt FILE\|- [--allow-bash PREFIX]... [--browser] [--model M] [--effort E] [caps] [--detach]` | New attempt in the same Claude session (`claude --resume`). Terminal tasks only. `--allow-bash`/`--browser` are added for this and later attempts; each attempt records its own in `run.json`. |
+| `status [--task ID] [--wait SEC] [--json]` | Reconciles liveness, then reports. `--wait` long-polls and returns on the first transition, or at once if nothing is running. |
+| `result --task ID [--json]` | Final message and `structured_output` of the latest attempt. |
+| `cancel --task ID` | Only the attempt running when called: SIGINT to its process group, SIGTERM after 15 s, SIGKILL 10 s later; status `cancelled`. |
+| `list [--active] [--json]` | All tasks of the repo. |
+| `doctor` | Checks every flag and option value the launcher emits against the installed `claude` (no API calls; permission-rule strings are not validated). |
 
-## Worker contract
+All verbs except `doctor` take `--cwd`. Exit 0 means the verb worked; the run outcome is in the
+JSON on stdout. Refusals print `{"error": ...}` and exit 1; malformed arguments print usage to
+stderr and exit 2. A task with unreadable files is `unknown` with `error`, active if `lock_held`.
 
-The launcher injects a preamble into every prompt:
+## Review mode (default)
 
-- Codex is lead orchestrator; Claude is a scoped worker.
-- Writes are restricted to `--write-scope`.
-- Raw logs are handled by the launcher; the worker must not summarise to stdout.
-- The worker must write its final compact summary to `.agent-runs/claude/<task>/summary.md`.
-- The launcher defaults to the latest Sonnet with high reasoning effort.
+Edit, Write and NotebookEdit are removed. Bash runs Claude Code's built-in read-only commands
+(`cat`, `grep`, `find`, `ls`, `diff`, `stat`, read-only `git`, ...; not configurable) plus
+`git status/diff/log/show/blame/grep/ls-files/rev-parse`, `rg`, `wc`, `head`, `tail` and each
+`--allow-bash` prefix. Output is forced into the review preset `{verdict: approve|request-changes|inconclusive,
+findings: [{severity, title, file, line, evidence, recommendation}], verification: [], risks: []}`,
+returned as `structured_output`; `--schema FILE` swaps it, `--schema none` gives prose. Any
+change git can see outside `.agent-runs/` makes the run `scope-violation`.
 
-## Concurrency and feedback model
+## Write mode and parallel runs
 
-The foreground launcher blocks until the Claude worker exits. For work that may
-outlive one tool-call window, detach it and persist the launcher PID:
+`--mode write --scope src/auth [--scope docs/auth.md]` allows Edit/Write only under those paths
+(relative to `--cwd`; a path inside a submodule is refused), plus the review-mode Bash set with
+its `--allow-bash "pytest -q"` prefixes. After the run, every changed path outside the scopes is
+listed in `changes.json` and the status becomes `scope-violation`. Nothing is ever reverted.
+Not a sandbox: `--allow-bash` commands are trusted code; they and whatever they run (a test
+suite's `conftest.py`) have network access and your full user permissions, and Edit/Write rules
+do not bind them. The scope check sees only what git sees: never ignored files, `.git` internals,
+paths outside the repo, edits inside an already-dirty submodule, or changes undone before exit.
 
-```bash
-repo=/path/to/repo
-task=modelmeta-spec-debate
-task_dir="$repo/.agent-runs/claude/$task"
-mkdir -p "$task_dir"
-nohup python3 ~/.codex/skills/claude-subagents/scripts/run_claude_subagent.py \
-  --cwd "$repo" \
-  --task "$task" \
-  --prompt /path/to/prompt.md \
-  --model sonnet \
-  --effort high \
-  --write-scope .agent-runs/claude \
-  >"$task_dir/launcher.log" 2>&1 &
-echo $! >"$task_dir/launcher.pid"
-```
+The diff check cannot tell who changed a file, so a write run needs the main working tree to
+itself: it is refused while any other run is active there, and a review while a main-tree writer
+runs (reviews may overlap). Start the second run with `--worktree`: Claude then runs in
+`<repo>/.agent-runs/wt/<task>` on branch `csa/<task>` from HEAD (no uncommitted changes). Workers
+never commit: review the diff in that tree, commit there yourself, merge `csa/<task>`, verify,
+then `git worktree remove` it (never `--force` over uncommitted work). Hands off while it runs.
 
-Per-task logs do not collide; `ledger.json` is file-locked. A session ID must
-never be shared by two active workers.
+## Browser checks
 
-If a session is already in use, the run is marked `status: locked` and the
-launcher exits `3`. Codex receives the worker's result through the summary and
-ledger rather than by holding a shell call open.
+`--browser` adds a headless, isolated `@playwright/mcp@0.0.83` server (pinned; `npx -y`): network
+access, the browser loads any URL and can submit forms. Allowed: navigate(_back), click, hover,
+drag, type, press_key, select_option, fill_form, handle_dialog, wait_for, resize, emulate_media,
+tabs, close. Denied: run_code_unsafe, evaluate, file_upload, drop, and the tools whose `filename`
+writes anywhere in the repo (snapshot, take_screenshot, console_messages, network_request(s),
+find). Actions save the page snapshot and console log to `a<N>/browser/` and return their paths
+for the worker to read; no screenshots. `file://` is blocked: put a dev server's URL in the prompt.
 
-## Parallel fan-out
+## Monitoring flow
 
-Independent tasks can be launched in parallel from one Codex shell call. Give
-each task its own prompt, task ID, session, and disjoint write scope:
+1. `start --detach` each task; it returns in under a second with `{task, attempt, pid, pgid, run_dir}`.
+2. In the same turn, run `status --wait 540 --json` with a shell-tool timeout of at least
+   600000 ms; if the tool yields before the command returns, keep polling that session.
+3. Report each entry of `transitions`; run `result --task ID --json` for every terminal task.
+4. Repeat 2-3 while `active > 0`. Only for runs expected to exceed ~30 min, create a Codex
+   Desktop heartbeat automation that runs `status --json` and deletes itself once `active` is 0.
 
-```bash
-repo=/path/to/repo
-run_dir="$repo/.agent-runs/claude"
-mkdir -p "$run_dir"
+From Windows, a detached run outlives `wsl.exe` only while the distro stays up: WSL stops an
+idle distro after 15 s unless `%UserProfile%\.wslconfig` has `[general]` `instanceIdleTimeout=-1`.
+A run lost that way reports `interrupted` with `launcher_lost`. Only `status: complete` is
+success; never treat a partial `stream.jsonl` as a result. Continue only with `resume`.
 
-tasks=(schema-review hashing-review cli-review)
-prompts=(
-  "$repo/.agent-runs/prompts/schema-review.md"
-  "$repo/.agent-runs/prompts/hashing-review.md"
-  "$repo/.agent-runs/prompts/cli-review.md"
-)
-scopes=(
-  ".agent-runs/claude/schema-review"
-  ".agent-runs/claude/hashing-review"
-  ".agent-runs/claude/cli-review"
-)
-
-for i in "${!tasks[@]}"; do
-  mkdir -p "$repo/${scopes[$i]}" "$run_dir/${tasks[$i]}"
-  nohup python3 ~/.codex/skills/claude-subagents/scripts/run_claude_subagent.py \
-    --cwd "$repo" \
-    --task "${tasks[$i]}" \
-    --prompt "${prompts[$i]}" \
-    --model sonnet \
-    --effort high \
-    --write-scope .agent-runs/claude \
-    --write-scope "${scopes[$i]}" \
-    >"$run_dir/${tasks[$i]}/launcher.log" 2>&1 &
-  echo $! >"$run_dir/${tasks[$i]}/launcher.pid"
-done
-```
-
-The shared `.agent-runs/claude` scope is intentional: each task writes distinct
-task-named control files there. The project-write scopes must not overlap. If
-tasks need to modify the same source file, serialize them or make the first
-workers read-only and integrate their findings in Codex.
-
-## Requirements
-
-- Claude CLI installed and authenticated (`claude --version` should succeed).
-- Python 3.9+ (stdlib only, no extra packages).
-
-## Codex-owned monitoring
-
-Claude Code is not the monitoring loop. Codex uses an automation/heartbeat
-only while one or more detached workers are active. The automation wakes Codex
-for a bounded watcher turn; it is not a separate daemon or `Monitor` API.
-
-The monitor reads the launcher ledger, PID files, stderr, and summary files and
-models each task with these states:
-
-| State | Evidence | Action |
+| Status | Meaning | Next |
 |---|---|---|
-| `running` | launcher/worker PID is alive and ledger is active | wait for the next wakeup |
-| `complete` | summary exists, ledger is `complete`, exit code is zero | report result |
-| `needs-attention` | process exited, nonzero exit, or summary missing | inspect logs; do not claim success |
-| `locked` | stderr reports an active session lock | do not duplicate; wait or resume deliberately |
+| `running` | launcher or worker alive (`worker_alive`, `idle_s` in status) | wait |
+| `complete` | exit 0 (unknown if `launcher_lost`), result `success`, not `is_error`, no scope violation | use the result |
+| `failed` | error result (API error, unknown model, max turns, budget), no result, or the scope check could not run (`error`) | read `result`; `resume` or new task |
+| `timeout` | hit `--timeout-min` | `resume` with a larger cap or a narrower prompt |
+| `cancelled` | `cancel` was run | - |
+| `interrupted` | launcher killed, or worker died without a result | `resume` |
+| `scope-violation` | files changed outside scope (any change in review mode) | inspect `changes.json`; never auto-revert |
 
-On a wakeup, Codex checks all active task IDs in one bounded snapshot, reports
-only meaningful state changes, and retires the automation when no active run
-remains. The automation must not edit project source files. It may request a
-resume or restart only after confirming the old process is gone and the task's
-session/ledger state makes that safe.
+## Models and caps
 
-This separation is normative: Claude workers do the work, while the
-automation-triggered Codex turn owns waiting and state inspection. Never hold a
-single shell call open for the entire worker lifetime and never treat a partial
-JSONL stream as completion.
+Without `--model`, Claude's configured default is used. Prefer the CLI aliases `sonnet`, `opus`,
+`haiku` (current release) or a full Claude model id, passed verbatim. Never pass Codex/OpenAI
+model names: an unknown model fails the run (the result names it); check `model_resolved`.
+`--effort` (low|medium|high|xhigh|max) is passed only when given. Caps default to `--max-turns 80
+--budget-usd 5 --timeout-min 45` (positive, finite); `resume` inherits them unless overridden. The
+budget is Claude's estimate; on `resume`, `cost_usd` includes earlier attempts; a cancelled turn: 0.
 
-## Example prompts
+## Run layout
 
-See `examples/prompts/` for ready-made audit and fix prompts.
+`<repo>/.agent-runs/claude/<task>/` holds `run.json` (atomic state: task, mode, scopes,
+session_id, caps, status, attempts[]), `active.lock` (flock the launcher holds until the worker's
+process group is empty) and one never-overwritten `a<N>/` per attempt (`prompt.md stream.jsonl
+stderr.log result.md result.json changes.json [mcp.json browser/]`). `--worktree` checkouts are in
+`<repo>/.agent-runs/wt/<task>/`. `.agent-runs/` goes into `.git/info/exclude`; a v1 `ledger.json`
+is ignored.
+
+## Worker environment
+
+`claude -p --output-format stream-json --verbose`, prompt on stdin, `--permission-mode dontAsk`,
+`--strict-mcp-config`, settings `disableAllHooks` and `blockReadsOutsideWorkingDirectories`
+(file tools and read-only Bash refuse paths outside the working directory: pass the repo root as
+`--cwd` if the worker must read all of it). Always denied: WebFetch, WebSearch, DesignSync,
+PushNotification, RemoteTrigger, SendMessage, Monitor, ScheduleWakeup, EnterWorktree, Workflow.
+Auto memory, cron and background tasks are off. Still inherited: user and project CLAUDE.md,
+plugins, skills, settings `env`/`model`, and allow rules from every settings file (a deny always
+wins). Appended contract: no questions, no retrying denials, no commits or report files, and the
+deliverable (structured output, or a prose final message).
+
+## Troubleshooting
+
+- `doctor` first: it parses `claude --help` and runs every argv variant with empty stdin.
+- Denied tool calls: `result --json` shows `denial_details`; `resume --allow-bash PREFIX`.
+- `failed` with `is_error`: the result text is Claude's error (API, auth, model, budget).
+- Raw evidence: `a<N>/stream.jsonl`, `a<N>/stderr.log`, `a<N>/launcher.log` (detached runs).
